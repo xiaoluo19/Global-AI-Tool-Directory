@@ -51,6 +51,16 @@ pnpm update:ai-tools
 
 构建产物输出到 `dist/`。
 
+## Render 部署
+
+仓库已提供 `render.yaml`，推荐在 Render 中用 Blueprint 或重新连接仓库，让 Render 自动读取配置：
+
+- Build Command：`pnpm install --frozen-lockfile && pnpm build`
+- Publish Directory / Static Publish Path：`dist`
+- Rewrite：`/* -> /index.html`
+
+如果 Render 控制台里手动创建 Static Site，请务必确认发布目录是 `dist`，不要留空，也不要填项目根目录。否则虽然日志显示 build 成功，访问根域名仍会出现 `Not Found`。
+
 ## GitHub Pages 部署
 
 项目已在 `vite.config.ts` 中设置 `base: "./"`，适合部署到 GitHub Pages 的项目页面。
