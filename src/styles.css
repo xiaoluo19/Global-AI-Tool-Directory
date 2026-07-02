@@ -118,6 +118,29 @@ button {
   background: rgba(217, 70, 239, 0.44);
 }
 
+.category-scroll {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.32) transparent;
+}
+
+.category-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.category-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.category-scroll::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.28);
+  border-radius: 999px;
+}
+
+.category-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 70, 239, 0.42);
+}
+
 @keyframes orbit-slow {
   0% {
     transform: rotate(0deg) scale(1);

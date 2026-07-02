@@ -612,13 +612,13 @@ function Directory({
         <AutoUpdatePanel compact />
       </div>
       <div className="grid grid-cols-[250px_1fr] gap-4">
-        <aside data-animate="card" className="sticky top-[82px] h-[calc(100vh-104px)] rounded-[8px] border border-violet-200/10 bg-[#090513]/86 p-4 shadow-card backdrop-blur-xl">
-          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-white">
+        <aside data-animate="card" className="sticky top-[82px] flex h-[calc(100vh-104px)] flex-col overflow-hidden rounded-[8px] border border-violet-200/10 bg-[#090513]/86 p-4 shadow-card backdrop-blur-xl">
+          <div className="mb-4 flex shrink-0 items-center gap-2 text-sm font-medium text-white">
             <Filter className="size-4 text-houde-cyan" />
             分类筛选
           </div>
-          <div className="space-y-2">
-              {["全部工具", ...categories].map((category) => (
+          <div className="category-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+            {["全部工具", ...categories].map((category) => (
               <button
                 key={category}
                 onClick={() => onCategoryChange(category)}
