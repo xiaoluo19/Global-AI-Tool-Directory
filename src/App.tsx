@@ -37,6 +37,7 @@ import {
   tools,
   type Tool,
 } from "./data/tools";
+import { aiBotImportedTools } from "./data/aiBotImportedTools";
 import { toolUpdateReport } from "./data/toolUpdates";
 
 type PageKey = "dashboard" | "directory" | "scenarios" | "workflow" | "compare";
@@ -90,27 +91,15 @@ const categoryShortcuts = [
 ];
 
 const DIRECTORY_RENDER_LIMIT = 144;
+const allTools = mergeTools(tools, aiBotImportedTools);
 
-function deferTask(callback: () => void) {
-  const requestIdle = window.requestIdleCallback;
-  const cancelIdle = window.cancelIdleCallback;
-  if (requestIdle && cancelIdle) {
-    const idleId = requestIdle(callback, { timeout: 1500 });
-    return () => cancelIdle(idleId);
-  }
-  const timerId = window.setTimeout(callback, 350);
-  return () => window.clearTimeout(timerId);
-}
-
-function dashboardStats(toolList: Tool[], isImportingTools: boolean) {
+function dashboardStats(toolList: Tool[]) {
   const scenes = new Set(toolList.flatMap((tool) => tool.scenarios));
-  const visibleToolCount = isImportingTools ? Math.max(500, toolList.length) : toolList.length;
-  const beginnerCount = isImportingTools ? Math.max(250, toolList.filter((tool) => tool.difficulty === "新手友好").length) : toolList.filter((tool) => tool.difficulty === "新手友好").length;
   return [
-    { label: "收录AI工具", value: `${visibleToolCount}+` },
+    { label: "收录AI工具", value: `${toolList.length}+` },
     { label: "覆盖工作场景", value: `${Math.max(25, scenes.size)}+` },
     { label: "品牌部推荐流程", value: "5套" },
-    { label: "新手友好工具", value: `${beginnerCount}+` },
+    { label: "新手友好工具", value: `${toolList.filter((tool) => tool.difficulty === "新手友好").length}+` },
   ];
 }
 
@@ -132,13 +121,9 @@ function App() {
   const [globalQuery, setGlobalQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部工具");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [importedTools, setImportedTools] = useState<Tool[]>([]);
-  const [isImportingTools, setIsImportingTools] = useState(false);
   const pageRef = useRef<HTMLElement | null>(null);
 
   useAnimeAmbientMotion();
-
-  const allTools = useMemo(() => mergeTools(tools, importedTools), [importedTools]);
 
   const featuredTools = useMemo(
     () =>
@@ -174,27 +159,7 @@ function App() {
       });
       return queryMatch && categoryMatch && filtersMatch;
     });
-  }, [activeFilters, allTools, globalQuery, selectedCategory]);
-
-  useEffect(() => {
-    if (importedTools.length > 0 || isImportingTools) return;
-    let cancelled = false;
-    const cancelDeferredTask = deferTask(() => {
-      if (cancelled) return;
-      setIsImportingTools(true);
-      import("./data/aiBotImportedTools")
-        .then(({ aiBotImportedTools }) => {
-          if (!cancelled) setImportedTools(aiBotImportedTools);
-        })
-        .finally(() => {
-          if (!cancelled) setIsImportingTools(false);
-        });
-    });
-    return () => {
-      cancelled = true;
-      cancelDeferredTask();
-    };
-  }, [importedTools.length, isImportingTools]);
+  }, [activeFilters, globalQuery, selectedCategory]);
 
   function toggleFilter(filter: string) {
     setActiveFilters((current) =>
@@ -216,8 +181,7 @@ function App() {
           onOpenDirectory={jumpToDirectory}
           onNavigate={setActivePage}
           featuredTools={featuredTools}
-          stats={dashboardStats(allTools, isImportingTools || importedTools.length === 0)}
-          isImportingTools={isImportingTools}
+          stats={dashboardStats(allTools)}
         />
       );
     }
@@ -232,7 +196,6 @@ function App() {
           onToggleFilter={toggleFilter}
           filteredTools={filteredTools}
           allTools={allTools}
-          isImportingTools={isImportingTools}
         />
       );
     }
@@ -440,13 +403,11 @@ function Dashboard({
   onNavigate,
   featuredTools,
   stats,
-  isImportingTools,
 }: {
   onOpenDirectory: (category?: string) => void;
   onNavigate: (page: PageKey) => void;
   featuredTools: Tool[];
   stats: ReturnType<typeof dashboardStats>;
-  isImportingTools: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -484,11 +445,6 @@ function Dashboard({
             ))}
           </div>
         </div>
-        {isImportingTools && (
-          <div className="relative mt-4 inline-flex rounded-[8px] border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-xs text-violet-100">
-            正在载入扩展工具库，完整收录数量即将更新...
-          </div>
-        )}
       </section>
 
       <section data-animate="card" className="motion-card rounded-[8px] border border-violet-200/10 bg-[#090513]/82 p-3 shadow-card backdrop-blur-xl">
@@ -590,7 +546,6 @@ function Directory({
   onToggleFilter,
   filteredTools,
   allTools,
-  isImportingTools,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -600,7 +555,6 @@ function Directory({
   onToggleFilter: (value: string) => void;
   filteredTools: Tool[];
   allTools: Tool[];
-  isImportingTools: boolean;
 }) {
   const visibleTools = filteredTools.slice(0, DIRECTORY_RENDER_LIMIT);
   const hiddenCount = Math.max(0, filteredTools.length - visibleTools.length);
@@ -660,9 +614,7 @@ function Directory({
                   </button>
                 );
               })}
-              <span className="ml-auto text-sm text-slate-400">
-                {isImportingTools ? "正在载入扩展工具库..." : `匹配 ${filteredTools.length} 个工具`}
-              </span>
+              <span className="ml-auto text-sm text-slate-400">匹配 {filteredTools.length} 个工具</span>
             </div>
           </div>
 
