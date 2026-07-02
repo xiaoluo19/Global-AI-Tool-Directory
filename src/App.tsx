@@ -91,13 +91,26 @@ const categoryShortcuts = [
 
 const DIRECTORY_RENDER_LIMIT = 144;
 
-function dashboardStats(toolList: Tool[]) {
+function deferTask(callback: () => void) {
+  const requestIdle = window.requestIdleCallback;
+  const cancelIdle = window.cancelIdleCallback;
+  if (requestIdle && cancelIdle) {
+    const idleId = requestIdle(callback, { timeout: 1500 });
+    return () => cancelIdle(idleId);
+  }
+  const timerId = window.setTimeout(callback, 350);
+  return () => window.clearTimeout(timerId);
+}
+
+function dashboardStats(toolList: Tool[], isImportingTools: boolean) {
   const scenes = new Set(toolList.flatMap((tool) => tool.scenarios));
+  const visibleToolCount = isImportingTools ? Math.max(500, toolList.length) : toolList.length;
+  const beginnerCount = isImportingTools ? Math.max(250, toolList.filter((tool) => tool.difficulty === "新手友好").length) : toolList.filter((tool) => tool.difficulty === "新手友好").length;
   return [
-    { label: "收录AI工具", value: `${toolList.length}+` },
+    { label: "收录AI工具", value: `${visibleToolCount}+` },
     { label: "覆盖工作场景", value: `${Math.max(25, scenes.size)}+` },
     { label: "品牌部推荐流程", value: "5套" },
-    { label: "新手友好工具", value: `${toolList.filter((tool) => tool.difficulty === "新手友好").length}+` },
+    { label: "新手友好工具", value: `${beginnerCount}+` },
   ];
 }
 
@@ -164,20 +177,24 @@ function App() {
   }, [activeFilters, allTools, globalQuery, selectedCategory]);
 
   useEffect(() => {
-    if (activePage !== "directory" || importedTools.length > 0 || isImportingTools) return;
+    if (importedTools.length > 0 || isImportingTools) return;
     let cancelled = false;
-    setIsImportingTools(true);
-    import("./data/aiBotImportedTools")
-      .then(({ aiBotImportedTools }) => {
-        if (!cancelled) setImportedTools(aiBotImportedTools);
-      })
-      .finally(() => {
-        if (!cancelled) setIsImportingTools(false);
-      });
+    const cancelDeferredTask = deferTask(() => {
+      if (cancelled) return;
+      setIsImportingTools(true);
+      import("./data/aiBotImportedTools")
+        .then(({ aiBotImportedTools }) => {
+          if (!cancelled) setImportedTools(aiBotImportedTools);
+        })
+        .finally(() => {
+          if (!cancelled) setIsImportingTools(false);
+        });
+    });
     return () => {
       cancelled = true;
+      cancelDeferredTask();
     };
-  }, [activePage, importedTools.length, isImportingTools]);
+  }, [importedTools.length, isImportingTools]);
 
   function toggleFilter(filter: string) {
     setActiveFilters((current) =>
@@ -199,7 +216,8 @@ function App() {
           onOpenDirectory={jumpToDirectory}
           onNavigate={setActivePage}
           featuredTools={featuredTools}
-          stats={dashboardStats(allTools)}
+          stats={dashboardStats(allTools, isImportingTools || importedTools.length === 0)}
+          isImportingTools={isImportingTools}
         />
       );
     }
@@ -422,11 +440,13 @@ function Dashboard({
   onNavigate,
   featuredTools,
   stats,
+  isImportingTools,
 }: {
   onOpenDirectory: (category?: string) => void;
   onNavigate: (page: PageKey) => void;
   featuredTools: Tool[];
   stats: ReturnType<typeof dashboardStats>;
+  isImportingTools: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -464,6 +484,11 @@ function Dashboard({
             ))}
           </div>
         </div>
+        {isImportingTools && (
+          <div className="relative mt-4 inline-flex rounded-[8px] border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-xs text-violet-100">
+            正在载入扩展工具库，完整收录数量即将更新...
+          </div>
+        )}
       </section>
 
       <section data-animate="card" className="motion-card rounded-[8px] border border-violet-200/10 bg-[#090513]/82 p-3 shadow-card backdrop-blur-xl">
